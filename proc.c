@@ -15,11 +15,17 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int totalTickets = 0;
+int randomSeed = 9348;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
-
+float randNum()
+{
+  randomSeed = (37*randomSeed+4387)%10000;
+  return randomSeed/10000;
+}
 void
 pinit(void)
 {
@@ -38,10 +44,10 @@ struct cpu*
 mycpu(void)
 {
   int apicid, i;
-  
+
   if(readeflags()&FL_IF)
     panic("mycpu called with interrupts enabled\n");
-  
+
   apicid = lapicid();
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
@@ -82,12 +88,15 @@ allocproc(void)
     if(p->state == UNUSED)
       goto found;
 
+
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->tickets = 1;
+  totalTickets += 1;
 
   release(&ptable.lock);
 
@@ -124,7 +133,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -209,6 +218,9 @@ fork(void)
   np->cwd = idup(curproc->cwd);
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+  totalTickets-=np->tickets;
+  np->tickets = curproc->tickets; //child process inherets tickets from parent
+  totalTickets+=np->tickets;
 
   pid = np->pid;
 
@@ -262,6 +274,7 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  totalTickets -= curproc->tickets;
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -275,7 +288,7 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -325,20 +338,24 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
+    int count = 0;
+    int num = (int)randNum()*totalTickets;
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      count = count+p->tickets;
+      if(p->state != RUNNABLE || num > count)
         continue;
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+      cprintf("SCHEDULED: %s\n", p->name);
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -418,7 +435,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
