@@ -8,7 +8,7 @@
 #include "spinlock.h"
 #include "pstat.h"
 
-extern struct {
+struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
@@ -99,6 +99,7 @@ found:
   p->pid = nextpid++;
   p->tickets = 1;
   totalTickets += 1;
+  p->accticks = 0;
 
   release(&ptable.lock);
 
@@ -223,6 +224,7 @@ fork(void)
   totalTickets-=np->tickets;
   np->tickets = curproc->tickets; //child process inherets tickets from parent
   totalTickets+=np->tickets;
+  np->accticks = 0;
 
   pid = np->pid;
 
@@ -365,10 +367,12 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
+      uint ticks0 = ticks;
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
+      ticks0 = ticks - ticks0;
+      p->accticks+=ticks0;
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
@@ -560,5 +564,18 @@ procdump(void)
 
 void getprocinfo(struct pstat * info)
 {
-  info->inuse[0]=0;
+  struct proc *p;
+  int i = 0;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->state == UNUSED) info->inuse[i] = 0;
+    else info->inuse[i]=1;
+    info->tickets[i]=p->tickets;
+    info->pid[i]=p->pid;
+    info->ticks[i] = p->accticks;
+
+    i++;
+  }
+  release(&ptable.lock);
 }

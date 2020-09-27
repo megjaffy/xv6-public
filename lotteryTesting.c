@@ -1,5 +1,6 @@
 #include "types.h"
 #include "user.h"
+#include "pstat.h"
 
 int main(int argc, char *argv[])
 {
@@ -29,6 +30,13 @@ int main(int argc, char *argv[])
     printf(1, "C");
     wait();
       printf(1, "\n");
+  }
+  struct pstat test;
+  settickets(20);
+  getpinfo(&test);
+  for(int i=0; i<10; i++)
+  {
+    printf(1, "pid: %d; inuse: %d; numTickets: %d; ticks: %d\n", test.pid[i], test.inuse[i], test.tickets[i], test.ticks[i]);
   }
   exit();
 }
