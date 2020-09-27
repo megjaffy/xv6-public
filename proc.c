@@ -349,14 +349,17 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      //int prevCount = count;
       count = count+p->tickets;
-      if(p->state != RUNNABLE || num > count)
+      if(num > count)
+        continue;
+      else if(p->state !=RUNNABLE)
         continue;
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      //cprintf("SCHEDULED: %s. Winning ticket: %d\n", p->name, num);
+      //cprintf("SCHEDULED: %s. Prevcount: %d. Winning ticket: %d. Count: %d. numTickets: %d\n", p->name, prevCount, num, count, p->tickets);
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -367,6 +370,8 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      count = 0;
+      break;
     }
     release(&ptable.lock);
 
