@@ -6,7 +6,9 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "pstat.h"
 
+extern void getprocinfo(struct pstat *);
 extern int totalTickets;
 int
 sys_fork(void)
@@ -105,5 +107,12 @@ int sys_settickets(void)
 }
 int sys_getpinfo(void)
 {
+  struct pstat * info;
+  int in;
+  argint(0, &in);
+  info = (struct pstat *)in;
+  acquire(&tickslock);
+  getprocinfo(info);
+  release(&tickslock);
   return 1;
 }

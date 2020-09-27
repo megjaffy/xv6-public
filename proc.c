@@ -6,11 +6,13 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "pstat.h"
 
-struct {
+extern struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
 
 static struct proc *initproc;
 
@@ -554,4 +556,9 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+void getprocinfo(struct pstat * info)
+{
+  info->inuse[0]=0;
 }
