@@ -23,8 +23,8 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 float randNum()
 {
-  randomSeed = (37*randomSeed+4387)%10000;
-  return randomSeed/10000;
+  randomSeed = (6782*randomSeed+4387)%9181;
+  return randomSeed/9181.0;
 }
 void
 pinit(void)
@@ -343,7 +343,8 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
     int count = 0;
-    int num = (int)randNum()*totalTickets;
+    float r = randNum();
+    int num = (int)(r*totalTickets);
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
@@ -355,7 +356,7 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      cprintf("SCHEDULED: %s, %d\n", p->name, totalTickets);
+      //cprintf("SCHEDULED: %s. Winning ticket: %d\n", p->name, num);
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;

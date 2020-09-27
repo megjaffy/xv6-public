@@ -7,6 +7,7 @@
 #include "mmu.h"
 #include "proc.h"
 
+extern int totalTickets;
 int
 sys_fork(void)
 {
@@ -88,4 +89,21 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int sys_settickets(void)
+{
+  int numTickets;
+  acquire(&tickslock);
+  argint(0, &numTickets);
+  int ticketDif=numTickets - myproc()->tickets;
+  //cprintf("numTickets; %d; TicketDif: %d \n", ticketDif);
+  myproc()->tickets = numTickets;
+  totalTickets +=ticketDif;
+  release(&tickslock);
+  return 0;
+}
+int sys_getpinfo(void)
+{
+  return 1;
 }
