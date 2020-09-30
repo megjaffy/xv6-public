@@ -346,18 +346,24 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
+    int winnableTickets = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state == RUNNABLE)
+      {
+        winnableTickets+=p->tickets;
+      }
+    }
     int count = 0;
     float r = randNum();
-    int num = (int)(r*totalTickets);
+    int num = (int)(r*(winnableTickets-1));
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      //int prevCount = count;
+      if(p->state !=RUNNABLE)
+        continue;
       count = count+p->tickets;
       if(num > count)
-        continue;
-      else if(p->state !=RUNNABLE)
         continue;
 
       // Switch to chosen process.  It is the process's job
@@ -371,10 +377,10 @@ scheduler(void)
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
-      ticks0 = ticks - ticks0;
-      p->accticks+=ticks0;
       // Process is done running for now.
       // It should have changed its p->state before coming back.
+      ticks0 = ticks - ticks0 +1;
+      p->accticks+=ticks0;
       c->proc = 0;
       count = 0;
       break;
