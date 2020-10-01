@@ -7,24 +7,38 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "pstat.h"
+#include "date.h"
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
 
+static void initializeSeed(int * randomSeed)
+{
+  struct rtcdate *r =(struct rtcdate *) kalloc();
+  cmostime(r);
+  *randomSeed = (int)r->second+r->minute*60+r->hour*60*60;
+}
 
 static struct proc *initproc;
 
 int nextpid = 1;
 int totalTickets = 0;
-int randomSeed = 9348;
+
+int randomInit = 0; //if 0, random seed will be based on time
+int randomSeed = 9047; //otherwise, this is the seed for the psuedorandom generator
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
 float randNum()
 {
+  if(!randomInit) //only get time seed once, or not at all if using static seed
+  {
+    initializeSeed(&randomSeed);
+    randomInit = 1;
+  }
   randomSeed = (6782*randomSeed+4387)%9181;
   return randomSeed/9181.0;
 }
